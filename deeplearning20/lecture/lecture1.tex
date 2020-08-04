@@ -1,0 +1,92 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\DeclareMathOperator*{\var}{Var}
+\let\Pr\relax
+\DeclareMathOperator*{\Pr}{\mathbb{P}}
+
+\newcommand{\eps}{\epsilon}
+\newcommand{\abs}[1]{|#1|}
+\newcommand{\norm}[1]{\|#1\|}
+\newcommand{\inprod}[1]{\left\langle #1 \right\rangle}
+\newcommand{\R}{\mathbb{R}}
+
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf CS : Deep Learning } \hfill #2 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #5  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #3 \hfill #4} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+
+\newcommand{\lecture}[4]{\handout{#1}{#2}{#3}{Scribe: #4}{Lecture #1}}
+
+\usepackage{framed}
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{observation}[theorem]{Observation}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{definition}[theorem]{Definition}
+\newenvironment{example}[1][\unskip]
+{\begin{framed}\textbf{Example: #1.}}
+{\end{framed}}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{assumption}[theorem]{Assumption}
+
+% 1-inch margins, from fullpage.sty by H.Partl, Version 2, Dec. 15, 1988.
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 8.9in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+
+\parindent 0in
+\parskip 1.5ex
+
+\begin{document}
+
+\lecture{1 --- September 2, 2020}{Fall 2020}{Prof.\ Zhao Song}{Zhao Song}
+
+\section{Private Deep Learning}
+
+\subsection{Two hidden layer neural network}
+
+Let $\phi : \R \rightarrow \R$ denote the ReLU activation, i.e., $\phi(u) = \max\{u,0\}$.
+
+We consider a two hidden layer neural network $f : \R^d \rightarrow \R$ (which can be decomposed into two functions $h : \R^d \rightarrow \R^{m_a}$ and $g : \R^{m_a} \rightarrow \R^{m_b}$) as follows:
+\begin{align*}
+    h(x) = & ~ \phi( W_A x ) , \\
+    g(z) = & ~ W_C^\top \phi (z) , \\
+    f(x) = & ~ g( h( x ) ) = W_C^\top \phi( W_B \phi ( W_A x) ) ,
+\end{align*}
+where $W_A \in \R^{m_a \times d}$, $W_B \in \R^{m_b \times m_a}$ and $W_C \in \R^{m_b}$.
+
+Let $\{ (x_1, y_1), (x_2, y_2), \cdots, (x_n,y_n) \} \subset \R^d \times \R$ denote a set of $n$ input data points. We can think of $x_i$s are images and $y_i$s are the corresponding labels.
+
+In classical deep learning training, the task is to find weights $W_A, W_B$ and $W_C$ such that ${\cal L}$ is minimized.
+\begin{align*}
+{\cal L} = \sum_{i=1}^n \| f(x_i) - y_i \|_2^2 
+\end{align*}
+
+In this lecture, we describe a slightly different goal.
+The purpose is to find some $W_A$, $W_B$ and $W_C$ such that
+\begin{enumerate}
+  \item Utility: $f(x_i) \approx y_i$, $\forall i \in [n]$
+  \item Privacy: Given $h(x_i)$ and $W_A$, it is ``hard'' recover $x_i$
+\end{enumerate}
+
+\end{document}
