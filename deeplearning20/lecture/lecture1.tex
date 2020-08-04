@@ -1,6 +1,10 @@
 \documentclass[11pt]{article}
 \usepackage{amsmath,amssymb,amsthm}
 
+\usepackage{url}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true,citecolor=red,linkcolor=red}
+
 \DeclareMathOperator*{\E}{\mathbb{E}}
 \DeclareMathOperator*{\var}{Var}
 \let\Pr\relax
@@ -89,4 +93,13 @@ The purpose is to find some $W_A$, $W_B$ and $W_C$ such that
   \item Privacy: Given $h(x_i)$ and $W_A$, it is ``hard'' recover $x_i$
 \end{enumerate}
 
+There are several ways of modifying deep neural networks to make it more private
+\begin{enumerate}
+  \item Modify input data points \cite{hsla20}
+  \item Modify weights \cite{hsr+20}
+\end{enumerate}
+
+
+\bibliographystyle{alpha}
+\bibliography{ref1}
 \end{document}
