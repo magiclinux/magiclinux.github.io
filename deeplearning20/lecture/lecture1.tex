@@ -87,10 +87,10 @@ In classical deep learning training, the task is to find weights $W_A, W_B$ and 
 \end{align*}
 
 In this lecture, we describe a slightly different goal.
-The purpose is to find some $W_A$, $W_B$ and $W_C$ such that
+The purpose is to find some $W_A$, $W_B$ and $W_C$ such that satisfy the following two properties:
 \begin{enumerate}
   \item Utility: $f(x_i) \approx y_i$, $\forall i \in [n]$
-  \item Privacy: Given $h(x_i)$ and $W_A$, it is ``hard'' recover $x_i$
+  \item Privacy: Given $h(x_i)$ and $W_A$, it is ``hard'' to recover $x_i$
 \end{enumerate}
 
 There are several ways of modifying deep neural networks to make it more private
