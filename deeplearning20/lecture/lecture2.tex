@@ -1,0 +1,96 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+
+\usepackage{url}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true,citecolor=red,linkcolor=red}
+
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\DeclareMathOperator*{\var}{Var}
+\DeclareMathOperator{\poly}{poly}
+%\let\Pr\relax
+%\DeclareMathOperator*{\Pr}{\mathbb{P}}
+
+\newcommand{\eps}{\epsilon}
+\newcommand{\abs}[1]{|#1|}
+\newcommand{\norm}[1]{\|#1\|}
+\newcommand{\inprod}[1]{\left\langle #1 \right\rangle}
+\newcommand{\R}{\mathbb{R}}
+
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf CS : Deep Learning } \hfill #2 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #5  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #3 \hfill #4} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+
+\newcommand{\lecture}[4]{\handout{#1}{#2}{#3}{Scribe: #4}{Lecture #1}}
+
+\usepackage{framed}
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{observation}[theorem]{Observation}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{definition}[theorem]{Definition}
+\newenvironment{example}[1][\unskip]
+{\begin{framed}\textbf{Example: #1.}}
+{\end{framed}}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{assumption}[theorem]{Assumption}
+
+% 1-inch margins, from fullpage.sty by H.Partl, Version 2, Dec. 15, 1988.
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 8.9in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+
+\parindent 0in
+\parskip 1.5ex
+
+\begin{document}
+
+\lecture{2 --- September 4, 2020}{Fall 2020}{Prof.\ Zhao Song}{Zhao Song}
+
+\section{Concentration vs Discrepancy}
+
+\subsection{Chernoff bound vs Spencer Theorem}
+
+Using the well known Chernoff bound and a union bound, it is easy to derive the following result:
+\begin{theorem}
+Given $n$ vectors $a_1, a_2, \cdots, a_n \in \{\pm \}^n$. Let $\sigma_1, \sigma_2, \cdots, \sigma_n$ denote $n$ i.i.d. random sign variables. Then we have
+\begin{align*}
+\Pr_{\sigma \sim \{\pm 1\} } \Big[ \forall j \in [n] , | \langle a_j , \sigma \rangle | \lesssim \sqrt{n \log n} \Big] \geq 1 - 1/\poly(n).
+\end{align*}
+\end{theorem}
+
+The above result can be thought of as a concentration inequality. An interesting question to ask is if we don't need to high probability, then is $\sqrt{n \log n}$ is the best bound we could hope. This is a discrepancy type question. 
+
+Spencer is able to show the following exciting result
+\begin{theorem}
+Given $n$ vectors $a_1, a_2, \cdots, a_n \in \{\pm \}^n$. Let $\sigma_1, \sigma_2, \cdots, \sigma_n$ denote $n$ i.i.d. random sign variables. Then we have
+\begin{align*}
+\Pr_{\sigma \sim \{\pm 1\} } \Big[ \forall j \in [n] , | \langle a_j , \sigma \rangle | \lesssim \sqrt{n} \Big] \geq 1/2^n.
+\end{align*}
+\end{theorem}
+
+
+
+
+\bibliographystyle{alpha}
+\bibliography{ref2}
+\end{document}
