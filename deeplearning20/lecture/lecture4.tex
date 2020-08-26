@@ -1,0 +1,150 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{url}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true,citecolor=red,linkcolor=red}
+
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\DeclareMathOperator*{\var}{Var}
+\DeclareMathOperator{\poly}{poly}
+\newcommand{\N}{\mathcal{N}}
+\renewcommand{\d}{\mathrm{d}}
+
+\DeclareMathOperator{\dis}{dis}
+\DeclareMathOperator{\cts}{cts}
+\newcommand{\wh}{\widehat}
+\newcommand{\wt}{\widetilde}
+\newcommand{\ov}{\overline}
+%\let\Pr\relax
+%\DeclareMathOperator*{\Pr}{\mathbb{P}}
+
+\newcommand{\eps}{\epsilon}
+\newcommand{\abs}[1]{|#1|}
+\newcommand{\norm}[1]{\|#1\|}
+\newcommand{\inprod}[1]{\left\langle #1 \right\rangle}
+\newcommand{\R}{\mathbb{R}}
+
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf CS : Deep Learning } \hfill #2 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #5  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #3 \hfill #4} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+
+\newcommand{\lecture}[4]{\handout{#1}{#2}{#3}{Scribe: #4}{Lecture #1}}
+
+\usepackage{framed}
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{observation}[theorem]{Observation}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{definition}[theorem]{Definition}
+\newenvironment{example}[1][\unskip]
+{\begin{framed}\textbf{Example: #1.}}
+{\end{framed}}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{assumption}[theorem]{Assumption}
+
+% 1-inch margins, from fullpage.sty by H.Partl, Version 2, Dec. 15, 1988.
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 8.9in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+
+\parindent 0in
+\parskip 1.5ex
+
+\begin{document}
+
+\lecture{4 --- September 10, 2020}{Fall 2020}{Prof.\ Zhao Song}{Zhao Song}
+
+\section{Data separation implies eigenvalue bound on NTK}
+
+%Neural Tangent Kernel is introduced by Jacob, Gabriel and Hongler \cite{jgh18} and played a crucial role in showing the convergence of neural network training. 
+
+Data-separation is a reasonable assumption in deep learning theory. In this notes, we will show a connection between separation parameter $\delta$ and the smallest eigenvalue of NTK. Similar as previous lecture note, we will use one-hidden layer neural network with ReLU activation function as an example.
+
+\subsection{Neural Tangent Kernel}
+
+\begin{definition}[Neural Tangent Kernel \cite{jgh18}]
+Given a set of points $\{ (x_1, y_1) , (x_2, y_2), \cdots, (x_n,y_n) \} \subset \R^d \times \R$. We define  Neural Tangent Kernel $H^{\cts} \in \R^{n \times n}$
+\begin{align*}
+H^{\cts}_{i,j} = \E_{w \sim \N(0,I)} \left[ x_i^\top x_j \phi'( w^\top x_i ) \phi'( w^\top x_j ) \right] , 
+\end{align*}
+\end{definition}
+
+\subsection{Main result}%\label{sec:problem}
+
+
+\begin{lemma}[Lemma I.1 in \cite{os20}]
+Let $x_1, \cdots, x_n$ be points in $\R^d$ with $\| x_i \|_2 = 1, \forall i \in [n]$. Let $X = \begin{bmatrix} x_1 & \cdots & x_n \end{bmatrix}^\top \in \R^{n \times d}$. Let $\delta > 0 $ be the parameter such that
+\begin{align*}
+    \min_{i \neq j} \{ \| x_i - x_j \|_2 , \| x + x_j \|_2  \} \geq \delta
+\end{align*}
+Then we have
+\begin{align*}
+    \E_{w \sim \N(0,I_d) } [ \phi'(X w) \phi'(X w)^\top ] \succeq \delta / (100 n^2)
+\end{align*}
+\end{lemma}
+
+
+\begin{lemma}[Lemma I.1 in \cite{os20}]
+Let $x_1, \cdots, x_n$ be points in $\R^d$ with $\| x_i \|_2 = 1, \forall i \in [n]$. Let $X = \begin{bmatrix} x_1 & \cdots & x_n \end{bmatrix}^\top \in \R^{n \times d}$. Let $\delta > 0 $ be the parameter such that
+\begin{align*}
+    \min_{i \neq j} \{ \| x_i - x_j \|_2 , \| x + x_j \|_2  \} \geq \delta
+\end{align*}
+Then we have
+\begin{align*}
+    \E_{w \sim \N (0,I_d)} [ ( \phi'(X w) \phi'(X w)^\top ) \circ ( X X^\top ) ] \succeq \delta / (100 n^2)
+\end{align*}
+\end{lemma}
+
+\subsection{Probability tools}
+
+
+\begin{lemma}[Hoeffding bound \cite{h63}]\label{lem:hoeffding}
+Let $X_1, \cdots, X_n$ denote $n$ independent bounded variables in $[a_i,b_i]$. Let $X= \sum_{i=1}^n X_i$, then we have
+\begin{align*}
+\Pr[ | X - \E[X] | \geq t ] \leq 2\exp \left( - \frac{2t^2}{ \sum_{i=1}^n (b_i - a_i)^2 } \right).
+\end{align*}
+\end{lemma}
+
+\begin{lemma}[Bernstein inequality \cite{b24}]\label{lem:bernstein}
+Let $X_1, \cdots, X_n$ be independent zero-mean random variables. Suppose that $|X_i| \leq M$ almost surely, for all $i$. Then, for all positive $t$,
+\begin{align*}
+\Pr \left[ \sum_{i=1}^n X_i > t \right] \leq \exp \left( - \frac{ t^2/2 }{ \sum_{j=1}^n \E[X_j^2]  + M t /3 } \right).
+\end{align*}
+\end{lemma}
+
+\begin{lemma}[Anti-concentration of Gaussian distribution]\label{lem:anti_gaussian}
+Let $X\sim {\N}(0,\sigma^2)$,
+that is,
+the probability density function of $X$ is given by $\phi(x)=\frac 1 {\sqrt{2\pi\sigma^2}}e^{-\frac {x^2} {2\sigma^2} }$.
+Then
+\begin{align*}
+    \Pr[|X|\leq t]\in \left( \frac 2 3\frac t \sigma, \frac 4 5\frac t \sigma \right).
+\end{align*}
+\end{lemma}
+
+
+\bibliographystyle{alpha}
+\bibliography{ref4}
+\end{document}
