@@ -78,6 +78,8 @@
 
 \section{Neural Tangent Kernel}
 
+Neural Tangent Kernel is introduced by Jacob, Gabriel and Hongler \cite{jgh18} and played a crucial role in showing the convergence of neural network training. In this lecture notes, we will use one-hidden layer neural network as an example.
+
 \subsection{Problem Formulation}\label{sec:problem}
 
 Our problem formulation is the same as \cite{dzps19,sy19}. We consider a two-layer ReLU activated neural network with $m$ neurons in the hidden layer:
@@ -100,7 +102,7 @@ L (W) = \frac{1}{2} \sum_{i=1}^n ( y_i - f (W,x_i,a) )^2 .
 
 We apply the gradient descent to optimize the weight matrix $W$ in the following standard way,
 \begin{align}\label{eq:w_update}
-W(k+1) = W(k) - \eta \frac{ \partial L( W(k) ) }{ \partial W(k) } .
+W(t + 1) = W( t ) - \eta \frac{ \partial L( W ) }{ \partial W } \Big |_{W = W(t)} .
 \end{align}
 
 
@@ -122,8 +124,8 @@ u_i(t)=f(W(t),a,x_i).
 \end{align}
 
 
-\begin{algorithm} % enter the algorithm environment
-\caption{Training neural network using gradient descent.}
+\begin{algorithm}
+\caption{Training neural network using gradient descent. This algorithm takes $T m nd $ time without using fast matrix multiplication.}
 \label{alg:main} 
 \begin{algorithmic}[1]
 	\Procedure{NNTraining}{$\{(x_i,y_i)\}_{i\in [n]}$}
@@ -150,7 +152,7 @@ u_i(t)=f(W(t),a,x_i).
 
 
 \subsection{Bounding the difference between continuous and discrete }
-%\Xin{Add some words here.}
+
 
 In this section, we restate a result from \cite{dzps19}, showing that when the width $m$ is sufficiently large,
 then the continuous version and discrete version of the gram matrix of input data is close in the spectral sense.
@@ -166,24 +168,65 @@ Let $\lambda = \lambda_{\min} (H^{\cts}) $. If $m = \Omega( \lambda^{-2} n^2\log
 \end{align*}
 hold with probability at least $1-\delta$.
 \end{lemma}
-The proof can be found in Appendix \ref{sec:missing_proof}.
 
-
-
-We define the event
+%For the completeness, we provide a proof of Lemma \ref{lem:3.1} here.
+\begin{proof}%[Proof of Lemma \ref{lem:3.1}]
+For every fixed pair $(i,j)$,
+$H_{i,j}^{\dis}$ is an average of independent random variables,
+i.e.
 \begin{align*}
-A_{i,r} = \left\{ \exists u : \| u - \wt{w}_r \|_2 \leq R, {\bf 1}_{ x_i^\top \wt{w}_r \geq 0 } \neq {\bf 1}_{ x_i^\top u \geq 0 } \right\}.
+H_{i,j}^{\dis}=~\frac {1}{m}\sum_{r=1}^m x_i^\top x_j\mathbf{1}_{w_r^\top x_i\geq 0,w_r^\top x_j\geq 0}.
 \end{align*}
-Note this event happens if and only if $| \wt{w}_r^\top x_i | < R$. Recall that $\wt{w}_r \sim \N(0,I)$. By anti-concentration inequality of Gaussian (Lemma~\ref{lem:anti_gaussian}), we have
-\begin{align}\label{eq:Air_bound}
-\Pr[ A_{i,r} ] = \Pr_{ z \sim \N(0,1) } [ | z | < R ] \leq \frac{ 2 R }{ \sqrt{2\pi} }.
-\end{align}
+Then the expectation of $H_{i,j}^{\dis}$ is
+\begin{align*}
+\E [ H_{i,j}^{\dis} ]
+= & ~\frac {1}{m}\sum_{r=1}^m \E_{w_r\sim {\N}(0,I_d)} \left[ x_i^\top x_j\mathbf{1}_{w_r^\top x_i\geq 0,w_r^\top x_j\geq 0} \right]\\
+= & ~\E_{w\sim {\N}(0,I_d)} \left[ x_i^\top x_j\mathbf{1}_{w^\top x_i\geq 0,w^\top x_j\geq 0} \right]\\
+= & ~ H_{i,j}^{\cts}.
+\end{align*}
+For $r\in [m]$,
+let $z_r=\frac {1}{m}x_i^\top x_j \mathbf{1}_{w_r ^\top x_i\geq 0,w_r^\top x_j\geq 0}$.
+Then $z_r$ is a random function of $w_r$,
+hence $\{z_r\}_{r\in [m]}$ are mutually independent.
+Moreover,
+$-\frac {1}{m}\leq z_r\leq \frac {1}{m}$.
+So by Hoeffding inequality(Lemma \ref{lem:hoeffding}) we have for all $t>0$,
+\begin{align*}
+\Pr \left[ | H_{i,j}^{\dis} - H_{i,j}^{\cts} | \geq t \right]
+\leq & ~ 2\exp \Big( -\frac{2t^2}{4/m} \Big) \\
+ = & ~ 2\exp(-mt^2/2).
+\end{align*}
+Setting $t=( \frac{1}{m} 2 \log (2n^2/\delta) )^{1/2}$,
+we can apply union bound on all pairs $(i,j)$ to get with probability at least $1-\delta$,
+for all $i,j\in [n]$,
+\begin{align*}
+|H_{i,j}^{\dis} - H_{i,j}^{\cts}|
+\leq \Big( \frac{2}{m}\log (2n^2/\delta) \Big)^{1/2}
+\leq 4 \Big( \frac{\log ( n/\delta ) }{m} \Big)^{1/2}.
+\end{align*}
+Thus we have
+\begin{align*}
+\|H^{\dis} - H^{\cts}\|^2 
+\leq & ~ \|H^{\dis} - H^{\cts}\|_F^2 \\
+ = & ~ \sum_{i=1}^n\sum_{j=1}^n |H_{i,j}^{\dis} - H_{i,j}^{\cts}|^2 \\
+ \leq & ~ \frac{1}{m} 16n^2\log (n/\delta).
+\end{align*}
+Hence if $m=\Omega( \lambda^{-2} n^2\log (n/\delta) )$ we have the desired result.
+\end{proof}
+
+%The proof can be found in Appendix \ref{sec:missing_proof}.
+
+
+
+
 
 
 \subsection{Bounding changes of $H$ when $w$ is in a small ball}
-We improve the Lemma 3.2 in \cite{dzps19} from the two perspective : one is the probability, and the other is upper bound on spectral norm.
+%We improve the Lemma 3.2 in 
 
-\begin{lemma}[perturbed $w$]\label{lem:3.2}
+\cite{dzps19} proved a weaker version of Lemma~\ref{lem:3.2}. Later, \cite{sy19} improve it from the two perspective : one is the probability, and the other is upper bound on spectral norm.
+
+\begin{lemma}[perturbed $w$, \cite{sy19}]\label{lem:3.2}
 Let $R \in (0,1)$. If $\wt{w}_1, \cdots, \wt{w}_m$ are i.i.d. generated ${\N}(0,I)$. For any set of weight vectors $w_1, \cdots, w_m \in \R^d$ that satisfy for any $r\in [m]$, $\| \wt{w}_r - w_r \|_2 \leq R$, then the $H : \R^{m \times d} \rightarrow \R^{n \times n}$ defined
 \begin{align*}
     H(w)_{i,j} =  \frac{1}{m} x_i^\top x_j \sum_{r=1}^m {\bf 1}_{ w_r^\top x_i \geq 0, w_r^\top x_j \geq 0 } .
@@ -195,6 +238,15 @@ Then we have
 holds with probability at least $1-n^2 \cdot \exp(-m R /10)$.
 \end{lemma}
 \begin{proof}
+
+We define the event
+\begin{align*}
+A_{i,r} = \left\{ \exists u : \| u - \wt{w}_r \|_2 \leq R, {\bf 1}_{ x_i^\top \wt{w}_r \geq 0 } \neq {\bf 1}_{ x_i^\top u \geq 0 } \right\}.
+\end{align*}
+Note this event happens if and only if $| \wt{w}_r^\top x_i | < R$. Recall that $\wt{w}_r \sim \N(0,I)$. By anti-concentration inequality of Gaussian (Lemma~\ref{lem:anti_gaussian}), we have
+\begin{align}\label{eq:Air_bound}
+\Pr[ A_{i,r} ] = \Pr_{ z \sim \N(0,1) } [ | z | < R ] \leq \frac{ 2 R }{ \sqrt{2\pi} }.
+\end{align}
 
 
 The random variable we care is
@@ -292,7 +344,7 @@ H(s)_{i,j} = \frac{1}{m} \sum_{r=1}^m x_i^\top x_j {\bf 1}_{ w_r(s)^\top x_i \ge
 \end{align*} 
 \end{definition}
 With $H$ defined,
-it becomes more convenient to write the dynamics of predictions (proof can be found in Appendix \ref{sec:missing_proof}).
+it becomes more convenient to write the dynamics of predictions (proof can be found in \cite{sy19}) %found in Appendix \ref{sec:missing_proof}).
 \begin{fact}\label{fact:dudt}
 $
 \frac{\d}{\d t} u(t)= H(t) \cdot (y-u(t)) .
@@ -301,7 +353,7 @@ $
 
 
 
-We state two tools from previous work(delayed the proof into Appendix \ref{sec:missing_proof})
+We state two tools from \cite{dzps19} without provide a proof. %previous %work(delayed the proof into Appendix \ref{sec:missing_proof})
 
 \begin{lemma}[Lemma 3.3 in \cite{dzps19}]\label{lem:3.3}
 Suppose for $0 \leq s \leq t$, $\lambda_{\min} ( H( w(s) ) ) \geq \lambda / 2$. Let $D_{\cts}$ be defined as
@@ -447,7 +499,7 @@ By Claim \ref{cla:yu0},
 
 \subsection{Technical Claims}
 
-In this section we only list all the statement and left the proofs as an exercise.
+In this section we only list all the statement and left the proofs as an exercise. The proof details of the following Claims can be found in \cite{sy19}.
  \begin{claim}\label{cla:yu0}
 For $0 < \delta < 1$, we have
 \begin{align*}
@@ -507,9 +559,32 @@ C_4 \leq \eta^2 n^2 \cdot \| y - u(k) \|_2^2.
 \end{claim}
 %The proof is in Appendix \ref{sec:proof_c4}
 
+\subsection{Probability tools}
 
 
+\begin{lemma}[Hoeffding bound \cite{h63}]\label{lem:hoeffding}
+Let $X_1, \cdots, X_n$ denote $n$ independent bounded variables in $[a_i,b_i]$. Let $X= \sum_{i=1}^n X_i$, then we have
+\begin{align*}
+\Pr[ | X - \E[X] | \geq t ] \leq 2\exp \left( - \frac{2t^2}{ \sum_{i=1}^n (b_i - a_i)^2 } \right).
+\end{align*}
+\end{lemma}
 
+\begin{lemma}[Bernstein inequality \cite{b24}]\label{lem:bernstein}
+Let $X_1, \cdots, X_n$ be independent zero-mean random variables. Suppose that $|X_i| \leq M$ almost surely, for all $i$. Then, for all positive $t$,
+\begin{align*}
+\Pr \left[ \sum_{i=1}^n X_i > t \right] \leq \exp \left( - \frac{ t^2/2 }{ \sum_{j=1}^n \E[X_j^2]  + M t /3 } \right).
+\end{align*}
+\end{lemma}
+
+\begin{lemma}[Anti-concentration of Gaussian distribution]\label{lem:anti_gaussian}
+Let $X\sim {\N}(0,\sigma^2)$,
+that is,
+the probability density function of $X$ is given by $\phi(x)=\frac 1 {\sqrt{2\pi\sigma^2}}e^{-\frac {x^2} {2\sigma^2} }$.
+Then
+\begin{align*}
+    \Pr[|X|\leq t]\in \left( \frac 2 3\frac t \sigma, \frac 4 5\frac t \sigma \right).
+\end{align*}
+\end{lemma}
 
 
 \bibliographystyle{alpha}
