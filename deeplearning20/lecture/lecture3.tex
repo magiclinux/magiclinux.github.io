@@ -1,0 +1,517 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{url}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true,citecolor=red,linkcolor=red}
+
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\DeclareMathOperator*{\var}{Var}
+\DeclareMathOperator{\poly}{poly}
+\newcommand{\N}{\mathcal{N}}
+\renewcommand{\d}{\mathrm{d}}
+
+\DeclareMathOperator{\dis}{dis}
+\DeclareMathOperator{\cts}{cts}
+\newcommand{\wh}{\widehat}
+\newcommand{\wt}{\widetilde}
+\newcommand{\ov}{\overline}
+%\let\Pr\relax
+%\DeclareMathOperator*{\Pr}{\mathbb{P}}
+
+\newcommand{\eps}{\epsilon}
+\newcommand{\abs}[1]{|#1|}
+\newcommand{\norm}[1]{\|#1\|}
+\newcommand{\inprod}[1]{\left\langle #1 \right\rangle}
+\newcommand{\R}{\mathbb{R}}
+
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf CS : Deep Learning } \hfill #2 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #5  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #3 \hfill #4} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+
+\newcommand{\lecture}[4]{\handout{#1}{#2}{#3}{Scribe: #4}{Lecture #1}}
+
+\usepackage{framed}
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{observation}[theorem]{Observation}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{definition}[theorem]{Definition}
+\newenvironment{example}[1][\unskip]
+{\begin{framed}\textbf{Example: #1.}}
+{\end{framed}}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{assumption}[theorem]{Assumption}
+
+% 1-inch margins, from fullpage.sty by H.Partl, Version 2, Dec. 15, 1988.
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 8.9in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+
+\parindent 0in
+\parskip 1.5ex
+
+\begin{document}
+
+\lecture{3 --- September 8, 2020}{Fall 2020}{Prof.\ Zhao Song}{Zhao Song}
+
+\section{Neural Tangent Kernel}
+
+\subsection{Problem Formulation}\label{sec:problem}
+
+Our problem formulation is the same as \cite{dzps19,sy19}. We consider a two-layer ReLU activated neural network with $m$ neurons in the hidden layer:
+\begin{align*}
+f (W,x,a) = \frac{1}{ \sqrt{m} } \sum_{r=1}^m a_r \phi ( w_r^\top x ) ,
+\end{align*}
+where $x \in \R^d$ is the input, $w_1, \cdots, w_m \in \R^d$ are weight vectors in the first layer, $a_1, \cdots, a_m \in \R$ are weights in the second layer.  For simplicity, we only optimize $W$ but not optimize $a$ and $W$ at the same time. 
+
+Recall that the ReLU function $\phi(x)=\max\{x,0\}$.
+Therefore for $r\in [m]$,
+we have
+\begin{align}\label{eq:relu_derivative}
+\frac{f (W,x,a)}{\partial w_r}=\frac{1}{ \sqrt{m} } a_r x{\bf 1}_{ w_r^\top x \geq 0 }.
+\end{align}
+
+We define objective function $L$ as follows
+\begin{align*}
+L (W) = \frac{1}{2} \sum_{i=1}^n ( y_i - f (W,x_i,a) )^2 .
+\end{align*}
+
+We apply the gradient descent to optimize the weight matrix $W$ in the following standard way,
+\begin{align}\label{eq:w_update}
+W(k+1) = W(k) - \eta \frac{ \partial L( W(k) ) }{ \partial W(k) } .
+\end{align}
+
+
+
+We can compute the gradient of $L$ in terms of $w_r$
+\begin{align}\label{eq:gradient}
+\frac{ \partial L(W) }{ \partial w_r } = \frac{1}{ \sqrt{m} } \sum_{i=1}^n ( f(W,x_i,a_r) - y_i ) a_r x_i {\bf 1}_{ w_r^\top x_i \geq 0 }.
+\end{align}
+
+We consider the ordinary differential equation defined by
+\begin{align}\label{eq:wr_derivative}
+\frac{\d w_r(t)}{\d t}=-\frac{ \partial L(W) }{ \partial w_r }.
+\end{align}
+
+At time $t$,
+let $u(t)=(u_1(t),\cdots,u_n(t))\in \mathbb{R}^n$ be the prediction vector where each $u_i(t)$ is defined as
+\begin{align}\label{eq:ut_def}
+u_i(t)=f(W(t),a,x_i).
+\end{align}
+
+
+\begin{algorithm} % enter the algorithm environment
+\caption{Training neural network using gradient descent.}
+\label{alg:main} 
+\begin{algorithmic}[1]
+	\Procedure{NNTraining}{$\{(x_i,y_i)\}_{i\in [n]}$}
+	\State $w_r(0) \sim \N(0,I_d)$ for $r\in [m]$.
+	% \State $u(1) \leftarrow 0$
+	\For{$t=1 \to T$}
+		\State $u(t) \leftarrow \frac{1}{ \sqrt{m} } \sum_{r=1}^m a_r \sigma(w_r(t)^\top X) $ \Comment{$u(t) = f(W(t),x,a) \in \R^n$, it takes $O(mnd)$ time}
+		\For{$r = 1 \to m$}
+			\For{$i = 1 \to n$} 
+				\State $Q_{i,:} \leftarrow \frac{1}{\sqrt{m}}a_r\sigma'(w_r(t)^\top x_i)x_i^\top$ \Comment{$Q_{i,:} = \frac{\partial f(W(t),x_i,a)}{\partial w_r}$, it takes $O(d)$ time}
+			\EndFor
+			\State $\text{grad}_r \leftarrow - Q^\top (y - u(t) ) $%$+\lambda w_r(t)$ 
+			\Comment{ $Q = \frac{\partial f} {\partial w_r } \in \R^{n \times d}$, it takes $O(nd)$ time }
+			\State $w_r(t+1) \leftarrow w_r(t) - \eta \cdot \text{grad}_r $
+		\EndFor
+	\EndFor
+	\State \Return $W$
+	\EndProcedure
+\end{algorithmic}
+\end{algorithm}
+
+
+
+
+
+\subsection{Bounding the difference between continuous and discrete }
+%\Xin{Add some words here.}
+
+In this section, we restate a result from \cite{dzps19}, showing that when the width $m$ is sufficiently large,
+then the continuous version and discrete version of the gram matrix of input data is close in the spectral sense.
+\begin{lemma}[Lemma 3.1 in \cite{dzps19}]\label{lem:3.1}
+We define $H^{\cts}, H^{\dis} \in \R^{n \times n}$ as follows
+\begin{align*}
+H^{\cts}_{i,j} = & ~ \E_{w \sim \N(0,I)} \left[ x_i^\top x_j {\bf 1}_{ w^\top x_i \geq 0, w^\top x_j \geq 0 } \right] , \\ 
+H^{\dis}_{i,j} = & ~ \frac{1}{m} \sum_{r=1}^m \left[ x_i^\top x_j {\bf 1}_{ w_r^\top x_i \geq 0, w_r^\top x_j \geq 0 } \right].
+\end{align*}
+Let $\lambda = \lambda_{\min} (H^{\cts}) $. If $m = \Omega( \lambda^{-2} n^2\log (n/\delta) )$, we have 
+\begin{align*}
+\| H^{\dis} - H^{\cts} \|_F \leq \frac{ \lambda }{4}, \mathrm{~and~} \lambda_{\min} ( H^{\dis} ) \geq \frac{3}{4} \lambda.
+\end{align*}
+hold with probability at least $1-\delta$.
+\end{lemma}
+The proof can be found in Appendix \ref{sec:missing_proof}.
+
+
+
+We define the event
+\begin{align*}
+A_{i,r} = \left\{ \exists u : \| u - \wt{w}_r \|_2 \leq R, {\bf 1}_{ x_i^\top \wt{w}_r \geq 0 } \neq {\bf 1}_{ x_i^\top u \geq 0 } \right\}.
+\end{align*}
+Note this event happens if and only if $| \wt{w}_r^\top x_i | < R$. Recall that $\wt{w}_r \sim \N(0,I)$. By anti-concentration inequality of Gaussian (Lemma~\ref{lem:anti_gaussian}), we have
+\begin{align}\label{eq:Air_bound}
+\Pr[ A_{i,r} ] = \Pr_{ z \sim \N(0,1) } [ | z | < R ] \leq \frac{ 2 R }{ \sqrt{2\pi} }.
+\end{align}
+
+
+\subsection{Bounding changes of $H$ when $w$ is in a small ball}
+We improve the Lemma 3.2 in \cite{dzps19} from the two perspective : one is the probability, and the other is upper bound on spectral norm.
+
+\begin{lemma}[perturbed $w$]\label{lem:3.2}
+Let $R \in (0,1)$. If $\wt{w}_1, \cdots, \wt{w}_m$ are i.i.d. generated ${\N}(0,I)$. For any set of weight vectors $w_1, \cdots, w_m \in \R^d$ that satisfy for any $r\in [m]$, $\| \wt{w}_r - w_r \|_2 \leq R$, then the $H : \R^{m \times d} \rightarrow \R^{n \times n}$ defined
+\begin{align*}
+    H(w)_{i,j} =  \frac{1}{m} x_i^\top x_j \sum_{r=1}^m {\bf 1}_{ w_r^\top x_i \geq 0, w_r^\top x_j \geq 0 } .
+\end{align*}
+Then we have
+\begin{align*}
+\| H (w) - H(\wt{w}) \|_F < 2 n R,
+\end{align*}
+holds with probability at least $1-n^2 \cdot \exp(-m R /10)$.
+\end{lemma}
+\begin{proof}
+
+
+The random variable we care is
+{%\footnotesize
+\begin{align*}
+& ~ \sum_{i=1}^n \sum_{j=1}^n | H(\wt{w})_{i,j} - H(w)_{i,j} |^2 \\
+%= & ~ \frac{1}{m^2} \sum_{i=1}^n \sum_{j=1}^n \left| x_i^\top x_j \sum_{r=1}^m ( {\bf 1}_{ \wt{w}_r^\top x_i \geq 0, \wt{w}_r^\top x_j \geq 0} - {\bf 1}_{ w_r^\top x_i \geq 0 , w_r^\top x_j \geq 0 } ) \right|^2 \\
+\leq & ~ \frac{1}{m^2} \sum_{i=1}^n \sum_{j=1}^n \left( \sum_{r=1}^m {\bf 1}_{ \wt{w}_r^\top x_i \geq 0, \wt{w}_r^\top x_j \geq 0} - {\bf 1}_{ w_r^\top x_i \geq 0 , w_r^\top x_j \geq 0 } \right)^2 \\
+= & ~ \frac{1}{m^2} \sum_{i=1}^n \sum_{j=1}^n  \Big( \sum_{r=1}^m s_{r,i,j} \Big)^2 ,
+\end{align*}
+}
+where the last step follows from for each $r,i,j$, we define
+\begin{align*}
+s_{r,i,j} :=  {\bf 1}_{ \wt{w}_r^\top x_i \geq 0, \wt{w}_r^\top x_j \geq 0} - {\bf 1}_{ w_r^\top x_i \geq 0 , w_r^\top x_j \geq 0 } .
+\end{align*} 
+
+We consider $i,j$ are fixed. We simplify $s_{r,i,j}$ to $s_r$.
+
+Then $s_r$ is a random variable that only depends on $\wt{w}_r$.
+Since $\{\wt{w}_r\}_{r=1}^m$ are independent,
+$\{s_r\}_{r=1}^m$ are also mutually independent.
+
+If   $\neg A_{i,r}$ and $\neg A_{j,r}$ happen,
+then 
+\begin{align*}
+\left| {\bf 1}_{ \wt{w}_r^\top x_i \geq 0, \wt{w}_r^\top x_j \geq 0} - {\bf 1}_{ w_r^\top x_i \geq 0 , w_r^\top x_j \geq 0 } \right|=0.
+\end{align*}
+If   $A_{i,r}$ or $A_{j,r}$ happen,
+then 
+\begin{align*}
+\left| {\bf 1}_{ \wt{w}_r^\top x_i \geq 0, \wt{w}_r^\top x_j \geq 0} - {\bf 1}_{ w_r^\top x_i \geq 0 , w_r^\top x_j \geq 0 } \right|\leq 1.
+\end{align*}
+So we have {%\small
+\begin{align*}
+ \E_{\wt{w}_r}[s_r]\leq \E_{\wt{w}_r} \left[ {\bf 1}_{A_{i,r}\vee A_{j,r}} \right] 
+ \leq & ~ \Pr[A_{i,r}]+\Pr[A_{j,r}] \\
+ \leq & ~ \frac {4 R}{\sqrt{2\pi}} \\
+ \leq & ~ 2 R,
+\end{align*}}
+and {%\small
+\begin{align*}
+    \E_{\wt{w}_r} \left[ \left(s_r-\E_{\wt{w}_r}[s_r] \right)^2 \right]
+    = & ~ \E_{\wt{w}_r}[s_r^2]-\E_{\wt{w}_r}[s_r]^2 \\
+    \leq & ~ \E_{\wt{w}_r}[s_r^2]\\
+    \leq & ~\E_{\wt{w}_r} \left[ \left( {\bf 1}_{A_{i,r}\vee A_{j,r}} \right)^2 \right] \\
+     \leq & ~ \frac {4R}{\sqrt{2\pi}} \\
+     \leq  &~ 2 R .
+\end{align*}}
+We also have $|s_r|\leq 1$.
+So we can apply Bernstein inequality (Lemma~\ref{lem:bernstein}) to get for all $t>0$,{%\small
+\begin{align*}
+    \Pr \left[\sum_{r=1}^m s_r\geq 2m R +mt \right]
+    \leq & ~ \Pr \left[\sum_{r=1}^m (s_r-\E[s_r])\geq mt \right]\\
+    \leq & ~ \exp \left( - \frac{ m^2t^2/2 }{ 2m R   + mt/3 } \right).
+\end{align*}}
+Choosing $t = R$, we get
+\begin{align*}
+    \Pr \left[\sum_{r=1}^m s_r\geq 3mR  \right]
+    \leq & ~ \exp \left( -\frac{ m^2  R^2 /2 }{ 2 m  R + m  R /3 } \right) \\
+     \leq & ~ \exp \left( - m R / 10 \right) .
+\end{align*}
+Thus, we can have
+\begin{align*}
+\Pr \left[ \frac{1}{m} \sum_{r=1}^m s_r \geq 3  R \right] \leq \exp( - m R /10 ).
+\end{align*}
+Therefore, we complete the proof.
+\end{proof}
+
+\iffalse
+
+\begin{table*}\caption{Table of Parameters for the $m = \wt{\Omega}(n^4)$ result in Section~\ref{sec:quartic_suffices}. {\bf Nt.} stands for notations. 
+ $m$ is the width of neural network. $n$ is the number of input data points. $\delta$ is the failure probability.}
+\centering
+\begin{tabular}{ | l| l| l| l| } 
+\hline
+{\bf Nt.} & {\bf Choice} & {\bf Place} & {\bf Comment} \\\hline
+$\lambda$ & $:= \lambda_{\min}(H^{\cts}) $ & Assumption~\ref{ass:data_dependent_assumption} & Data-dependent \\ \hline
+$R$ & $\lambda/n$ & Eq.~\eqref{eq:choice_of_eta_R} & Maximal allowed movement of weight \\ \hline
+$D_{\cts}$ & $\frac{ \sqrt{n} \| y - u(0) \|_2 }{ \sqrt{m} \lambda }$ & Lemma~\ref{lem:3.3} & Actual moving distance of weight, continuous case  \\ \hline
+$D$ & $\frac{ 4\sqrt{n} \| y - u(0) \|_2 }{ \sqrt{m} \lambda }$ & Lemma~\ref{lem:4.1} & Actual moving distance of weight, discrete case  \\ \hline
+$\eta$ & $\lambda/n^2$ & Eq.~\eqref{eq:choice_of_eta_R} & Step size of gradient descent \\ \hline
+$m$ & $\lambda^{-2} n^2 \log(n/\delta)$ & Lemma~\ref{lem:3.1} & Bounding discrete and continuous \\ \hline
+$m$ & $\lambda^{-4} n^4 \log^3(n/\delta)$  & Lemma~\ref{lem:3.4} and Claim~\ref{cla:yu0} & $D < R$ and $\| y - u(0) \|_2^2 = \wt{O}(n)$ \\ \hline
+\end{tabular}
+\end{table*}
+\fi
+
+\subsection{Loss is decreasing while weights are not changing much}
+
+For simplicity of notation, we provide the following definition.
+\begin{definition}
+For any $s \in [0,t]$, we define matrix $H(s) \in \R^{n \times n}$ as follows
+\begin{align*}
+H(s)_{i,j} = \frac{1}{m} \sum_{r=1}^m x_i^\top x_j {\bf 1}_{ w_r(s)^\top x_i \geq 0, w_r(s)^\top x_j \geq 0 }.
+\end{align*} 
+\end{definition}
+With $H$ defined,
+it becomes more convenient to write the dynamics of predictions (proof can be found in Appendix \ref{sec:missing_proof}).
+\begin{fact}\label{fact:dudt}
+$
+\frac{\d}{\d t} u(t)= H(t) \cdot (y-u(t)) .
+$
+\end{fact}
+
+
+
+We state two tools from previous work(delayed the proof into Appendix \ref{sec:missing_proof})
+
+\begin{lemma}[Lemma 3.3 in \cite{dzps19}]\label{lem:3.3}
+Suppose for $0 \leq s \leq t$, $\lambda_{\min} ( H( w(s) ) ) \geq \lambda / 2$. Let $D_{\cts}$ be defined as
+$
+D_{\cts} := \frac{ \sqrt{n} \| y - u(0) \|_2 }{ \sqrt{m} \lambda }.
+$
+Then we have 
+\begin{align*}
+1. & ~ & \| w_r(t) - w_r(0) \|_2 \leq & ~ D_{\cts} , \forall r \in [m], \\
+2. & ~ & \| y - u(t) \|_2^2 \leq  &~ \exp( - \lambda t ) \cdot \| y - u(0) \|_2^2.
+\end{align*}
+\end{lemma}
+
+
+\begin{lemma}[Lemma 3.4 in \cite{dzps19}]\label{lem:3.4}
+If $D_{\cts}<R$.
+then for all $t\geq 0$,
+$\lambda_{\min}(H(t))\geq \frac{1}{2}\lambda$.
+Moreover,
+\begin{align*}
+1. & ~ & \|w_r(t)-w_r(0)\|_2 \leq & ~ D_{\cts}, \forall r \in [m], \\
+2. & ~ & \|y-u(t)\|_2^2 \leq & ~ \exp(-\lambda t) \cdot \|y-u(0)\|_2^2.
+\end{align*}
+\end{lemma}
+
+
+
+
+\subsection{Convergence}
+In this section we show that when the neural network is over-parametrized,
+the training error converges to 0 at linear rate.
+Our main result is Theorem \ref{thm:quartic}.
+
+\begin{theorem}[Main result in \cite{sy19}]\label{thm:quartic}
+Recall that $\lambda=\lambda_{\min}(H^{\cts})>0$.
+Let $m = \Omega( \lambda^{-4} n^4 \log (n/\delta) )$, we i.i.d. initialize $w_r \in {\N}(0,I)$, $a_r$ sampled from $\{-1,+1\}$ uniformly at random for $r\in [m]$, and we set the step size $\eta = O( \lambda / n^2 )$ then with probability at least $1-\delta$ over the random initialization we have for $k = 0,1,2,\cdots$
+\begin{align}\label{eq:quartic_condition}
+\| u (k) - y \|_2^2 \leq ( 1 - \eta \lambda / 2 )^k \cdot \| u (0) - y \|_2^2.
+\end{align}
+\end{theorem}
+
+
+
+\paragraph{Correctness}
+We prove Theorem \ref{thm:quartic} by induction.
+The base case is $i=0$ and it is trivially true.
+Assume for $i=0,\cdots,k$ we have proved Eq. \eqref{eq:quartic_condition} to be true.
+We want to show Eq. \eqref{eq:quartic_condition} holds for $i=k+1$.
+
+From the induction hypothesis,
+we have the following Lemma (see proof in Appendix \ref{sec:missing_proof}) stating that the weights should not change too much.
+\begin{lemma}[Corollary 4.1 in \cite{dzps19}]\label{lem:4.1}
+If Eq. \eqref{eq:quartic_condition} holds for $i = 0, \cdots, k$, then we have for all $r\in [m]$
+\begin{align*}
+\| w_r(k+1) - w_r(0) \|_2 \leq \frac{ 4 \sqrt{n} \| y - u (0) \|_2 }{ \sqrt{m} \lambda } := D.
+\end{align*}
+\end{lemma}
+%The proof can be found in Appendix \ref{sec:missing_proof}.
+
+
+Next, we calculate the different of predictions between two consecutive iterations, analogue to $\frac{\d u_i(t)}{ \d t }$ term in Fact \ref{fact:dudt}.
+For each $i \in [n]$, we have
+{%\tiny
+\begin{align*}
+& ~ u_i(k+1) - u_i(k) \\
+= & ~ \frac{1}{ \sqrt{m} } \sum_{r=1}^m a_r \cdot \left( \phi( w_r(k+1)^\top x_i ) - \phi(w_r(k)^\top x_i ) \right) \\
+= & ~ \frac{1}{\sqrt{m}} \sum_{r=1}^m a_r \cdot \left( \phi \left( \Big( w_r(k) - \eta \frac{ \partial L( W(k) ) }{ \partial w_r(k) } \Big)^\top x_i \right) - \phi ( w_r(k)^\top x_i ) \right).
+\end{align*}
+}
+Here we divide the right hand side into two parts. $v_{1,i}$ represents the terms that the pattern does not change and $v_{2,i}$ represents the term that pattern may changes. For each $i \in [n]$,
+we define the set $S_i\subset [m]$ as
+\begin{align*}
+    S_i:=\{r\in [m]:\forall 
+    w\in \mathbb{R}^d \text{ s.t. } & ~ \|w-w_r(0)\|_2\leq R,\\
+    & ~ \mathbf{1}_{w_r(0)^\top x_i\geq 0}=\mathbf{1}_{w^\top x_i\geq 0}\}.
+\end{align*}
+Then we define $v_{1,i}$ and $v_{2,i}$ as follows
+{%\tiny
+\begin{align*}
+v_{1,i} : = & ~ \frac{1}{ \sqrt{m} } \sum_{r \in S_i} a_r \left( \phi \left( \Big( w_r(k) - \eta \frac{ \partial L(W(k)) }{ \partial w_r(k) } \Big)^\top x_i \right) - \phi( w_r(k)^\top x_i ) \right), \\
+v_{2,i} : = & ~ \frac{1}{ \sqrt{m} } \sum_{r \in \ov{S}_i} a_r \left( \phi \left( \Big( w_r(k) - \eta \frac{ \partial L(W(k)) }{ \partial w_r(k) } \Big)^\top x_i \right) - \phi( w_r(k)^\top x_i ) \right) .
+\end{align*} 
+}
+
+
+Define $H$ and $H^{\bot} \in \R^{n \times n}$ as
+\begin{align*}
+H(k)_{i,j} = & ~ \frac{1}{m} \sum_{r=1}^m x_i^\top x_j {\bf 1}_{ w_r(k)^\top x_i \geq 0, w_r(k)^\top x_j \geq 0 } , \\
+H(k)^{\bot}_{i,j} = & ~ \frac{1}{m} \sum_{r\in \ov{S}_i} x_i^\top x_j {\bf 1}_{ w_r(k)^\top x_i \geq 0, w_r(k)^\top x_j \geq 0 } .
+\end{align*}
+and
+\begin{align*}
+C_1 = & ~ -2 \eta (y - u(k))^\top H(k) ( y - u(k) ) , \\
+C_2 = & ~ 2 \eta ( y - u(k) )^\top H(k)^{\bot} ( y - u(k) ) , \\
+C_3 = & ~ - 2 ( y - u(k) )^\top v_2 , \\
+C_4 = & ~ \| u (k+1) - u(k) \|_2^2 . 
+\end{align*}
+
+Then we have %(delayed the proof into Appendix \ref{sec:missing_proof})
+\begin{claim}\label{cla:inductive_claim}
+\begin{align*}
+\| y - u(k+1) \|_2^2 = \| y - u(k) \|_2^2 + C_1 + C_2 + C_3 + C_4.
+%\leq & ~ \| y - u(k) \|_2^2 ( 1 - \eta \lambda + 8 \eta n R  + 8 \eta n R  + \eta^2 n^2 ) 
+\end{align*}
+\end{claim}
+
+Applying Claim~\ref{cla:C1}, \ref{cla:C2}, \ref{cla:C3} and \ref{cla:C4} gives
+\begin{align*}
+\| y - u(k+1) \|_2^2 
+\leq & ~ \| y - u(k) \|_2^2 \\
+ & ~ \cdot ( 1 - \eta \lambda + 8 \eta n R  + 8 \eta n R  + \eta^2 n^2 ).
+\end{align*}
+%where the last step follows from Claim~\ref{cla:C1}, \ref{cla:C2}, \ref{cla:C3} and \ref{cla:C4},
+%whose proof is given later. %in Appendix \ref{sec:missing_proof}.
+
+\paragraph{Choice of $\eta$ and $R$.}
+
+Next, we want to choose $\eta$ and $R$ such that
+\begin{equation}\label{eq:choice_of_eta_R}
+( 1 - \eta \lambda + 8 \eta n R  + 8 \eta n R  + \eta^2 n^2 ) \leq (1-\eta\lambda/2) .
+\end{equation}
+
+If we set $\eta=\frac{\lambda }{4n^2}$ and $R=\frac{\lambda}{64n}$, we have 
+\begin{align*}
+8 \eta n R  + 8 \eta n R =16\eta nR \leq  \eta \lambda /4 ,
+\mathrm{~~~and~~~} \eta^2 n^2 \leq  \eta \lambda / 4.
+\end{align*}
+This implies
+\begin{align*}
+\| y - u(k+1) \|_2^2 \leq & ~ \| y - u(k) \|_2^2 \cdot ( 1 - \eta \lambda / 2 )
+\end{align*}
+holds with probability at least $1-3n^2\exp(-mR/10)$.
+
+\paragraph{Over-parameterization size, lower bound on $m$.}
+
+We require {%\small
+\begin{align*}
+ D=  \frac{4\sqrt{n}\|y-u(0)\|_2}{\sqrt{m}\lambda} < R = \frac{\lambda}{64n} ,
+\text{~and~}  3n^2\exp(-mR/10)\leq  \delta .
+\end{align*}}
+By Claim \ref{cla:yu0},
+ it is sufficient to choose $m = \Omega( \lambda^{-4} n^4 \log(m/\delta)\log^2(n/\delta) )$.
+
+\subsection{Technical Claims}
+
+In this section we only list all the statement and left the proofs as an exercise.
+ \begin{claim}\label{cla:yu0}
+For $0 < \delta < 1$, we have
+\begin{align*}
+\|y-u(0)\|_2^2=O(n\log(m/\delta)\log^2(n/\delta))
+\end{align*}
+holds with probability at least $1-\delta$.
+\end{claim}
+%The proof of Claim \ref{cla:yu0} is deferred to Appendix \ref{sec:proof_yu0}.
+
+
+
+\begin{claim}\label{cla:C1}
+Let $C_1 = -2 \eta (y - u(k))^\top H(k) ( y - u(k) )$. We have
+\begin{align*}
+C_1 \leq - \eta \lambda\cdot \| y - u(k) \|_2^2 
+\end{align*}
+holds with probability at least $1-n^2 \cdot \exp(-m R /10)$.
+\end{claim}
+%The proof is in Appendix \ref{sec:proof_c1}.
+
+
+\begin{claim}\label{cla:C2}
+Let $C_2 = 2 \eta ( y - u(k) )^\top H(k)^{\bot} ( y - u(k) )$. We have
+\begin{align*}
+C_2 \leq 8\eta nR\cdot \| y - u(k) \|_2^2
+\end{align*}
+holds with probability $1-n\cdot \exp(-mR)$.
+\end{claim}
+
+%The proof is in Appendix \ref{sec:proof_c2}.
+
+
+
+
+\begin{claim}\label{cla:C3}
+Let $C_3 = - 2 (y - u(k))^\top v_2$. Then we have
+\begin{align*}
+C_3 \leq 8 \eta nR\cdot \| y - u(k) \|_2^2  .
+\end{align*}
+with probability at least $1-n\cdot \exp(-mR)$.
+\end{claim}
+%The proof is in Appendix \ref{sec:proof_c3}
+
+
+
+
+
+
+
+
+
+\begin{claim}\label{cla:C4}
+Let $C_4  = \| u (k+1) - u(k) \|_2^2$. Then we have
+\begin{align*}
+C_4 \leq \eta^2 n^2 \cdot \| y - u(k) \|_2^2.
+\end{align*}
+\end{claim}
+%The proof is in Appendix \ref{sec:proof_c4}
+
+
+
+
+
+
+\bibliographystyle{alpha}
+\bibliography{ref3}
+\end{document}
